@@ -2,8 +2,7 @@ from nbgitpuller.hookspecs import hookimpl
 import re
 import asyncio
 import aiohttp
-from nbgitpuller.plugin_helper import handle_files_helper
-from nbgitpuller import TEMP_DOWNLOAD_REPO_DIR
+import nbgitpuller.plugin_helper as ph
 
 DOWNLOAD_URL = "https://docs.google.com/uc?export=download"
 
@@ -24,13 +23,13 @@ def handle_files(query_line_args):
     response = loop.run_until_complete(get_response_from_drive(DOWNLOAD_URL, get_id(repo)))
     ext = determine_file_extension_from_response(response)
     query_line_args["download_q"].put_nowait(f"Archive is: {ext}\n")
-    temp_download_file = f"{TEMP_DOWNLOAD_REPO_DIR}/download.{ext}"
+    temp_download_file = f"{ph.TEMP_DOWNLOAD_REPO_DIR}/download.{ext}"
 
     query_line_args["extension"] = ext
     query_line_args["dowload_func"] = download_archive_for_google
     query_line_args["dowload_func_params"] = query_line_args, temp_download_file
 
-    tasks = handle_files_helper(query_line_args), query_line_args["progress_func"]()
+    tasks = ph.handle_files_helper(query_line_args), query_line_args["progress_func"]()
     result_handle, _ = loop.run_until_complete(asyncio.gather(*tasks))
     return result_handle
 

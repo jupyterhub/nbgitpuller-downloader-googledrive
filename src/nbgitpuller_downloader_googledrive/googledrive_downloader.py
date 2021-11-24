@@ -1,4 +1,4 @@
-from nbgitpuller.hookspecs import hookimpl
+from nbgitpuller.plugin_hook_specs import hookimpl
 import re
 import asyncio
 import aiohttp
@@ -8,28 +8,27 @@ DOWNLOAD_URL = "https://docs.google.com/uc?export=download"
 
 
 @hookimpl
-def handle_files(query_line_args):
+def handle_files(helper_args, query_line_args):
     """
-    :param json args: this includes any argument you put on the url
-    PLUS the function, query_line_args["progress_func"], that writes messages to
-    the progress stream in the browser window and the download_q,
-    query_line_args["download_q"] the progress function uses.
+    :param dict helper_args: the function, helper_args["progress_func"], that writes messages to
+    the progress stream in the browser window and the download_q, helper_args["download_q"] the progress function uses.
+    :param dict query_line_args: this includes all the arguments included on the nbgitpuller URL
     :return two parameter json unzip_dir and origin_repo_path
     :rtype json object
     """
     loop = asyncio.get_event_loop()
     repo = query_line_args["repo"]
-    query_line_args["download_q"].put_nowait("Determining type of archive...\n")
+    helper_args["download_q"].put_nowait("Determining type of archive...\n")
     response = loop.run_until_complete(get_response_from_drive(DOWNLOAD_URL, get_id(repo)))
     ext = determine_file_extension_from_response(response)
-    query_line_args["download_q"].put_nowait(f"Archive is: {ext}\n")
+    helper_args["download_q"].put_nowait(f"Archive is: {ext}\n")
     temp_download_file = f"{ph.TEMP_DOWNLOAD_REPO_DIR}/download.{ext}"
 
-    query_line_args["extension"] = ext
-    query_line_args["dowload_func"] = download_archive_for_google
-    query_line_args["dowload_func_params"] = query_line_args, temp_download_file
+    helper_args["extension"] = ext
+    helper_args["dowload_func"] = download_archive_for_google
+    helper_args["dowload_func_params"] = query_line_args, temp_download_file
 
-    tasks = ph.handle_files_helper(query_line_args), query_line_args["progress_func"]()
+    tasks = ph.handle_files_helper(helper_args, query_line_args), helper_args["wait_for_sync_progress_queue"]()
     result_handle, _ = loop.run_until_complete(asyncio.gather(*tasks))
     return result_handle
 
